@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enhanced Closest Pair Visualizer</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            margin: 0; 
+            padding: 0; 
+            background-color: #f4f4f4;
+        }
+        
+        .canvas-container {
+            width: 100%;
+            height: 600px;
+            overflow: auto;
+            margin: 20px auto;
+            border: 1px solid #ccc;
+            background-color: white;
+        }
+
+        canvas {
+            display: block;
+            background-color: #f9f9f9;
+        }
+
+        #controls {
+            text-align: center;
+            margin: 20px 0;
+            background-color: #e9ecef;
+            padding: 15px;
+        }
+
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 10px 20px;
+            font-size: 16px;
+            border: none;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+            margin: 0 5px;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        .controls-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            margin: 10px 0;
+        }
+
+        #finalPopup {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            border: 2px solid black;
+            padding: 20px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+            display: none;
+            z-index: 1000;
+            text-align: center;
+        }
+
+        textarea {
+            display: block;
+            margin: 20px auto;
+            width: 100%;
+            max-width: 600px;
+        }
+    </style>
+</head>
+<body>
+
+<div id="controls">
+    <div class="controls-container">
+        <input type="file" id="fileInput" accept=".txt">
+        <button id="prevStep">Previous</button>
+        <button id="playPause">Play/Pause</button>
+        <button id="nextStep">Next</button>
+    </div>
+    <div class="controls-container">
+        <label>Zoom: <input type="range" id="zoomSlider" min="0.1" max="10" step="0.1" value="1"></label>
+        <label>Speed: <input type="range" id="speedSlider" min="100" max="2000" value="1000"></label>
+    </div>
+</div>
+
+<div class="canvas-container">
+    <canvas id="canvas" width="2000" height="2000"></canvas>
+</div>
+
+<textarea id="stepDescription" rows="4" cols="50" readonly></textarea>
+
+<div id="finalPopup">
+    <h2>Closest Pair of Points</h2>
+    <p id="finalPopupDetails"></p>
+    <button onclick="document.getElementById('finalPopup').style.display='none'">Close</button>
+</div>
+
+<script>
+class ClosestPairVisualizer {
+    constructor() {
+        this.canvas = document.getElementById('canvas');
+        this.ctx = this.canvas.getContext('2d');
+        this.fileInput = document.getElementById('fileInput');
+        this.prevStepBtn = document.getElementById('prevStep');
+        this.playPauseBtn = document.getElementById('playPause');
+        this.nextStepBtn = document.getElementById('nextStep');
+        this.zoomSlider = document.getElementById('zoomSlider');
+        this.speedSlider = document.getElementById('speedSlider');
+        this.stepDescription = document.getElementById('stepDescription');
+        this.finalPopup = document.getElementById('finalPopup');
+        this.finalPopupDetails = document.getElementById('finalPopupDetails');
+
+        this.points = [];
+        this.steps = [];
+        this.currentStep = 0;
+        this.isPlaying = false;
+        this.animationTimer = null;
+        this.closestPair = null;
+
+        this.setupEventListeners();
+    }
+
+    setupEventListeners() {
+        this.fileInput.addEventListener('change', (e) => this.loadPoints(e));
+        this.prevStepBtn.addEventListener('click', () => this.navigateStep(-1));
+        this.nextStepBtn.addEventListener('click', () => this.navigateStep(1));
+        this.playPauseBtn.addEventListener('click', () => this.togglePlayPause());
+        this.zoomSlider.addEventListener('input', () => this.redraw());
+        this.speedSlider.addEventListener('input', () => this.updateSpeed());
+    }
+
+    loadPoints(event) {
+        const file = event.target.files[0];
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            this.points = e.target.result.trim().split('\n')
+                .map(line => {
+                    const [x, y] = line.split(' ').map(parseFloat);
+                    return { x, y };
+                });
+            
+            this.calculateScaling();
+            this.findClosestPair();
+        };
+        reader.readAsText(file);
+    }
+
+    calculateScaling() {
+        const xCoords = this.points.map(p => p.x);
+        const yCoords = this.points.map(p => p.y);
+
+        this.minX = Math.min(...xCoords);
+        this.maxX = Math.max(...xCoords);
+        this.minY = Math.min(...yCoords);
+        this.maxY = Math.max(...yCoords);
+
+        const paddingFactor = 1.2;
+        const xRange = this.maxX - this.minX;
+        const yRange = this.maxY - this.minY;
+
+        this.scaleX = (this.canvas.width * 0.8) / (xRange * paddingFactor);
+        this.scaleY = (this.canvas.height * 0.8) / (yRange * paddingFactor);
+
+        this.offsetX = this.canvas.width * 0.1 - this.minX * this.scaleX;
+        this.offsetY = this.canvas.height * 0.9 + this.minY * this.scaleY;
+    }
+
+    findClosestPair() {
+        this.steps = [];
+        this.points.sort((a, b) => a.x - b.x);
+        this.closestPair = this.divideAndConquerClosestPair(this.points, 0, this.points.length - 1);
+        this.currentStep = 0;
+        this.redraw();
+    }
+
+     divideAndConquerClosestPair(points, left, right) {
+        if (right - left <= 3) {
+            return this.bruteForceClosestPair(points.slice(left, right + 1));
+        }
+
+        const mid = Math.floor((left + right) / 2);
+        const midPoint = points[mid];
+
+        this.steps.push({
+            points: this.points,
+            midLineX: midPoint.x,
+            description: `Dividing at x=${midPoint.x}`
+        });
+
+        const leftClosest = this.divideAndConquerClosestPair(points, left, mid);
+        const rightClosest = this.divideAndConquerClosestPair(points, mid + 1, right);
+
+        let minDistance = Math.min(leftClosest?.distance || Infinity, rightClosest?.distance || Infinity);
+        let closestPair = leftClosest?.distance < rightClosest?.distance ? leftClosest : rightClosest;
+
+        const strip = points.filter(p => Math.abs(p.x - midPoint.x) < minDistance);
+        strip.sort((a, b) => a.y - b.y);
+
+        // Add a step to show the strip points
+        this.steps.push({
+            points: this.points,
+            midLineX: midPoint.x,
+            stripPoints: strip,
+            description: `Calculating strip within ${minDistance.toFixed(2)} of midline`
+        });
+
+        for (let i = 0; i < strip.length; i++) {
+            for (let j = i + 1; j < strip.length && strip[j].y - strip[i].y < minDistance; j++) {
+                const distance = this.calculateDistance(strip[i], strip[j]);
+                
+                // Add a step to show lines between strip points being checked
+                this.steps.push({
+                    points: this.points,
+                    midLineX: midPoint.x,
+                    point1: strip[i],
+                    point2: strip[j],
+                    description: `Checking strip points: (${strip[i].x},${strip[i].y}) and (${strip[j].x},${strip[j].y})`
+                });
+
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    closestPair = { point1: strip[i], point2: strip[j], distance };
+                }
+            }
+        }
+
+        this.steps.push({
+            points: this.points,
+            removeMidLine: true,
+            description: `Finished checking strip near x=${midPoint.x}`
+        });
+
+        return closestPair;
+    }
+
+
+    bruteForceClosestPair(points) {
+        let minDistance = Infinity;
+        let closestPair = null;
+
+        for (let i = 0; i < points.length; i++) {
+            for (let j = i + 1; j < points.length; j++) {
+                const distance = this.calculateDistance(points[i], points[j]);
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    closestPair = { point1: points[i], point2: points[j], distance };
+                    this.steps.push({
+                        points: this.points,
+                        point1: points[i],
+                        point2: points[j],
+                        description: `Checking points: (${points[i].x},${points[i].y}) and (${points[j].x},${points[j].y})`
+                    });
+                }
+            }
+        }
+
+        return closestPair;
+    }
+
+    calculateDistance(p1, p2) {
+        return Math.sqrt((p1.x - p2.x) ** 2 + (p1.y - p2.y) ** 2);
+    }
+
+   redraw() {
+        const zoom = parseFloat(this.zoomSlider.value);
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+        const points = this.steps[this.currentStep]?.points || this.points;
+        points.forEach(p => {
+            const x = (p.x * this.scaleX + this.offsetX) * zoom;
+            const y = (p.y * -this.scaleY + this.offsetY) * zoom;
+
+            this.ctx.beginPath();
+            this.ctx.arc(x, y, 5 * zoom, 0, 2 * Math.PI);
+            this.ctx.fillStyle = 'blue';
+            this.ctx.fill();
+        });
+
+        const step = this.steps[this.currentStep];
+
+        if (step?.midLineX) {
+            const x = (step.midLineX * this.scaleX + this.offsetX) * zoom;
+
+            this.ctx.beginPath();
+            this.ctx.moveTo(x, 0);
+            this.ctx.lineTo(x, this.canvas.height);
+            this.ctx.strokeStyle = 'green';
+            this.ctx.lineWidth = 2;
+            this.ctx.stroke();
+        }
+
+        // Draw strip points lines
+        if (step?.stripPoints) {
+            const stripPoints = step.stripPoints;
+            for (let i = 0; i < stripPoints.length; i++) {
+                for (let j = i + 1; j < stripPoints.length; j++) {
+                    const p1 = stripPoints[i];
+                    const p2 = stripPoints[j];
+
+                    const x1 = (p1.x * this.scaleX + this.offsetX) * zoom;
+                    const y1 = (p1.y * -this.scaleY + this.offsetY) * zoom;
+                    const x2 = (p2.x * this.scaleX + this.offsetX) * zoom;
+                    const y2 = (p2.y * -this.scaleY + this.offsetY) * zoom;
+
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(x1, y1);
+                    this.ctx.lineTo(x2, y2);
+                    this.ctx.strokeStyle = 'rgba(255, 0, 0, 0.2)';  // Transparent red
+                    this.ctx.lineWidth = 1 * zoom;
+                    this.ctx.stroke();
+                }
+            }
+        }
+
+        if (step && step.point1 && step.point2) {
+            const p1 = step.point1;
+            const p2 = step.point2;
+
+            const x1 = (p1.x * this.scaleX + this.offsetX) * zoom;
+            const y1 = (p1.y * -this.scaleY + this.offsetY) * zoom;
+            const x2 = (p2.x * this.scaleX + this.offsetX) * zoom;
+            const y2 = (p2.y * -this.scaleY + this.offsetY) * zoom;
+
+            this.ctx.beginPath();
+            this.ctx.moveTo(x1, y1);
+            this.ctx.lineTo(x2, y2);
+            this.ctx.strokeStyle = 'red';
+            this.ctx.lineWidth = 2 * zoom;
+            this.ctx.stroke();
+        }
+
+        this.stepDescription.value = (step && step.description) ? step.description : '';
+    }
+
+    navigateStep(stepChange) {
+        this.currentStep = Math.max(0, Math.min(this.steps.length - 1, this.currentStep + stepChange));
+        this.redraw();
+    }
+
+    togglePlayPause() {
+        this.isPlaying = !this.isPlaying;
+        if (this.isPlaying) {
+            this.playPauseBtn.textContent = 'Pause';
+            this.startAnimation();
+        } else {
+            this.playPauseBtn.textContent = 'Play';
+            clearInterval(this.animationTimer);
+        }
+    }
+
+    startAnimation() {
+        const interval = parseInt(this.speedSlider.value, 10);
+        this.animationTimer = setInterval(() => {
+            if (this.currentStep < this.steps.length - 1) {
+                this.navigateStep(1);
+            } else {
+                this.togglePlayPause();
+                this.showFinalPopup();
+            }
+        }, interval);
+    }
+showFinalPopup() {
+        if (this.closestPair) {
+            this.finalPopupDetails.innerHTML = `
+                Closest Points:<br>
+                Point 1: (${this.closestPair.point1.x}, ${this.closestPair.point1.y})<br>
+                Point 2: (${this.closestPair.point2.x}, ${this.closestPair.point2.y})<br>
+                Distance: ${this.closestPair.distance.toFixed(4)}
+            `;
+            this.finalPopup.style.display = 'block';
+        }
+    }
+
+    updateSpeed() {
+        if (this.isPlaying) {
+            clearInterval(this.animationTimer);
+            this.startAnimation();
+        }
+    }
+}
+
+window.onload = () => {
+    const visualizer = new ClosestPairVisualizer();
+};
+</script>
+
+</body>
+</html>
