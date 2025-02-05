@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Karatsuba Multiplication Visualizer</title>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                max-width: 900px;
+                margin: 0 auto;
+                padding: 20px;
+                line-height: 1.6;
+            }
+            .input-container {
+                display: flex;
+                gap: 10px;
+                margin-bottom: 20px;
+            }
+            .input-container input {
+                flex-grow: 1;
+                padding: 10px;
+                font-size: 16px;
+            }
+            .navigation-controls {
+                display: flex;
+                gap: 10px;
+                margin-bottom: 20px;
+            }
+            .steps-view {
+                max-height: 500px;
+                overflow-y: auto;
+                border: 1px solid #ddd;
+                padding: 15px;
+            }
+            .step {
+                margin-bottom: 10px;
+                padding: 10px;
+                border: 1px solid #ddd;
+                border-radius: 5px;
+                background-color: #f9f9f9;
+            }
+            .step-indented {
+                margin-left: 20px;
+            }
+            .step-type-split { background-color: #e6f2ff; }
+            .step-type-base { background-color: #e6ffe6; }
+            .step-type-combine { background-color: #f2e6ff; }
+            .step-type-intermediate { background-color: #fff2e6; }
+            button {
+                background-color: #007bff;
+                color: white;
+                border: none;
+                padding: 10px 20px;
+                font-size: 16px;
+                cursor: pointer;
+                border-radius: 5px;
+            }
+            button:disabled {
+                background-color: #d6d6d6;
+                cursor: not-allowed;
+            }
+            button:hover:not(:disabled) {
+                background-color: #0056b3;
+            }
+        </style>
+    </head>
+    <body>
+        <h1>Karatsuba Multiplication Visualizer</h1>
+        
+        <div class="input-container">
+            <input type="file" id="numberFile" accept=".txt">
+            <button id="visualizeBtn">Visualize</button>
+        </div>
+
+        <div class="navigation-controls">
+            <button id="prevBtn" disabled>Previous</button>
+            <button id="playPauseBtn">Play</button>
+            <button id="nextBtn" disabled>Next</button>
+        </div>
+
+        <div id="resultDisplay">Final Result: </div>
+
+        <div class="steps-view" id="stepsContainer"></div>
+
+        <script>
+            class KaratsubaVisualizer {
+                constructor() {
+                    this.steps = [];
+                    this.currentStepIndex = -1;
+                    this.isPlaying = false;
+                    this.playInterval = null;
+
+                    // Get DOM elements
+                    this.prevBtn = document.getElementById('prevBtn');
+                    this.nextBtn = document.getElementById('nextBtn');
+                    this.playPauseBtn = document.getElementById('playPauseBtn');
+                    this.stepsContainer = document.getElementById('stepsContainer');
+                    this.resultDisplay = document.getElementById('resultDisplay');
+
+                    // Setup event listeners
+                    this.prevBtn.addEventListener('click', () => this.showPreviousStep());
+                    this.nextBtn.addEventListener('click', () => this.showNextStep());
+                    this.playPauseBtn.addEventListener('click', () => this.togglePlayPause());
+                }
+
+                generateVisualizationSteps(x, y) {
+    this.steps = [];
+    let finalResult = 0;
+
+    // Store the signs of x and y
+    const xSign = Math.sign(x);
+    const ySign = Math.sign(y);
+
+    // Work with absolute values
+    x = Math.abs(x);
+    y = Math.abs(y);
+
+    const recurseVisualize = (x, y, depth = 0, label = '') => {
+        const xStr = x.toString();
+        const yStr = y.toString();
+
+        // Intermediate step
+        this.steps.push({
+            type: 'intermediate',
+            x: x,
+            y: y,
+            depth: depth,
+            label: label,
+            explanation: `Starting recursive multiplication for x=${x}, y=${y}`
+        });
+
+        // Base case for single-digit multiplication
+        if (xStr.length === 1 && yStr.length === 1) {
+            const baseResult = x * y;
+            this.steps.push({
+                type: 'base',
+                x: x, 
+                y: y, 
+                result: baseResult,
+                depth: depth,
+                explanation: `Single-digit multiplication: ${x} * ${y} = ${baseResult}`
+            });
+            return baseResult;
+        }
+
+        // Determine max length for consistent splitting
+        const maxLength = Math.max(xStr.length, yStr.length);
+        const halfLength = Math.floor(maxLength / 2);
+
+        // Pad numbers with leading zeros
+        const paddedX = xStr.padStart(maxLength, '0');
+        const paddedY = yStr.padStart(maxLength, '0');
+
+        // Split numbers into parts
+        const a = parseInt(paddedX.slice(0, maxLength - halfLength), 10);
+        const b = parseInt(paddedX.slice(maxLength - halfLength), 10);
+        const c = parseInt(paddedY.slice(0, maxLength - halfLength), 10);
+        const d = parseInt(paddedY.slice(maxLength - halfLength), 10);
+
+        // Splitting step
+        this.steps.push({
+            type: 'split',
+            x: x, 
+            y: y, 
+            a: a, 
+            b: b, 
+            c: c, 
+            d: d,
+            depth: depth,
+            explanation: `Split ${x} into a=${a}, b=${b} and ${y} into c=${c}, d=${d}`
+        });
+
+        // Recursive multiplication of parts
+        const ac = recurseVisualize(a, c, depth + 1, 'ac');
+        const bd = recurseVisualize(b, d, depth + 1, 'bd');
+        const abcd = recurseVisualize(a + b, c + d, depth + 1, '(a+b)(c+d)');
+
+        // Calculate final result
+        const result = (
+            Math.pow(10, 2 * halfLength) * ac +
+            Math.pow(10, halfLength) * (abcd - ac - bd) +
+            bd
+        );
+
+        // Combine step
+        this.steps.push({
+            type: 'combine',
+            x: x, 
+            y: y, 
+            a: a,
+            b: b,
+            c: c,
+            d: d,
+            ac: ac, 
+            bd: bd, 
+            abcd: abcd,
+            result: result,
+            depth: depth,
+            explanation: `Combine steps for ${x} * ${y}: 
+            1. ac = ${a} * ${c} = ${ac}
+            2. bd = ${b} * ${d} = ${bd}
+            3. (a+b)(c+d) = (${a}+${b}) * (${c}+${d}) = ${abcd}
+            4. Result = (10^${2*halfLength} * ac) + (10^${halfLength} * (abcd - ac - bd)) + bd
+            = ${Math.pow(10, 2 * halfLength)} * ${ac} + ${Math.pow(10, halfLength)} * (${abcd} - ${ac} - ${bd}) + ${bd}
+            = ${result}`
+        });
+
+        // Store final result
+        if (depth === 0) finalResult = result;
+
+        return result;
+    };
+
+    // Initial multiplication call
+    recurseVisualize(x, y);
+
+    // Apply the signs to the final result
+    finalResult *= xSign * ySign;
+
+    this.resultDisplay.textContent = `Final Result: ${finalResult}`;
+    return this.steps;
+}
+
+
+                displayCurrentStep() {
+                    // Ensure we don't go out of bounds
+                    if (this.currentStepIndex < 0 || this.currentStepIndex >= this.steps.length) {
+                        return;
+                    }
+
+                    // Clear previous steps if it's the first step
+                    if (this.currentStepIndex === 0) {
+                        this.stepsContainer.innerHTML = '';
+                    }
+
+                    // Get current step
+                    const step = this.steps[this.currentStepIndex];
+
+                    // Create step element
+                    const stepElement = document.createElement('div');
+                    stepElement.style.marginLeft = `${step.depth * 20}px`;
+                    stepElement.classList.add('step', `step-type-${step.type}`);
+                    
+                    // Create step header
+                    const headerDiv = document.createElement('div');
+                    let headerTitle = step.type.charAt(0).toUpperCase() + step.type.slice(1);
+                    if (step.type === 'intermediate' && step.label) {
+                        headerTitle += ` (${step.label})`;
+                    }
+                    
+                    headerDiv.innerHTML = `
+                        <h3>${headerTitle} Step</h3>
+                        <span>Depth: ${step.depth}</span>
+                    `;
+                    stepElement.appendChild(headerDiv);
+
+                    // Create details div
+                    const detailsDiv = document.createElement('div');
+                    detailsDiv.classList.add('calculation-details');
+                    
+                    // Populate details based on step type
+                    switch(step.type) {
+                        case 'intermediate':
+                            detailsDiv.innerHTML = `
+                                <p><strong>Recursive Call:</strong> x = ${step.x}, y = ${step.y}</p>
+                                <p>${step.explanation}</p>
+                            `;
+                            break;
+                        case 'split':
+                            detailsDiv.innerHTML = `
+                                <p><strong>Original Numbers:</strong> X = ${step.x}, Y = ${step.y}</p>
+                                <p><strong>Split Result:</strong> a = ${step.a}, b = ${step.b}, c = ${step.c}, d = ${step.d}</p>
+                                <p>${step.explanation}</p>
+                            `;
+                            break;
+                        case 'base':
+                            detailsDiv.innerHTML = `
+                                <p><strong>Multiplication:</strong> ${step.x} * ${step.y} = ${step.result}</p>
+                                <p>${step.explanation}</p>
+                            `;
+                            break;
+                        case 'combine':
+                            detailsDiv.innerHTML = `
+                                <p><strong>Recursive Multiply Results:</strong></p>
+                                <p>a = ${step.a}, c = ${step.c}: ac = ${step.ac}</p>
+                                <p>b = ${step.b}, d = ${step.d}: bd = ${step.bd}</p>
+                                <p>(a+b) = ${step.a + step.b}, (c+d) = ${step.c + step.d}: (a+b)(c+d) = ${step.abcd}</p>
+                                <p><strong>Final Result:</strong> ${step.result}</p>
+                                <pre>${step.explanation}</pre>
+                            `;
+                            break;
+                    }
+                    
+                    stepElement.appendChild(detailsDiv);
+                    this.stepsContainer.appendChild(stepElement);
+
+                    // Update navigation buttons
+                    this.prevBtn.disabled = this.currentStepIndex === 0;
+                    this.nextBtn.disabled = this.currentStepIndex >= this.steps.length - 1;
+                }
+
+                showNextStep() {
+                    if (this.currentStepIndex < this.steps.length - 1) {
+                        this.currentStepIndex++;
+                        this.displayCurrentStep();
+                    }
+
+                    // Stop auto-play if reached the last step
+                    if (this.currentStepIndex === this.steps.length - 1) {
+                        this.stopPlayback();
+                    }
+                }
+
+                showPreviousStep() {
+                    if (this.currentStepIndex > 0) {
+                        this.currentStepIndex--;
+                        this.displayCurrentStep();
+                    }
+                }
+
+                togglePlayPause() {
+                    if (this.isPlaying) {
+                        this.stopPlayback();
+                    } else {
+                        this.startPlayback();
+                    }
+                }
+
+                startPlayback() {
+                    // Reset to start if at the end
+                    if (this.currentStepIndex === this.steps.length - 1) {
+                        this.currentStepIndex = -1;
+                        this.stepsContainer.innerHTML = '';
+                    }
+
+                    this.isPlaying = true;
+                    this.playPauseBtn.textContent = 'Pause';
+                    
+                    this.playInterval = setInterval(() => {
+                        this.showNextStep();
+                    }, 1000); // 1 second between steps
+                }
+
+                stopPlayback() {
+                    this.isPlaying = false;
+                    this.playPauseBtn.textContent = 'Play';
+                    
+                    if (this.playInterval) {
+                        clearInterval(this.playInterval);
+                    }
+                }
+
+                visualize(x, y) {
+                    // Reset visualization
+                    this.currentStepIndex = -1;
+                    this.stepsContainer.innerHTML = '';
+                    this.stopPlayback();
+
+                    // Generate and show steps
+                    this.generateVisualizationSteps(x, y);
+                    this.showNextStep(); // Show first step
+
+                    // Enable next button
+                    this.nextBtn.disabled = false;
+                }
+            }
+
+            // Initialize visualizer
+            const visualizer = new KaratsubaVisualizer();
+
+            // Visualize button event listener
+            // Visualize button event listener
+document.getElementById('visualizeBtn').addEventListener('click', async () => {
+    const numberFileInput = document.getElementById('numberFile');
+    
+    const file = numberFileInput.files[0];
+    if (!file) {
+        alert('Please select a file');
+        return;
+    }
+
+    try {
+        const fileContent = await file.text();
+        const lines = fileContent.trim().split('\n');
+
+        // Parse all pairs of numbers
+        const pairs = [];
+        for (let i = 0; i < lines.length; i += 2) {
+            const x = parseInt(lines[i].trim(), 10);
+            const y = parseInt(lines[i + 1]?.trim(), 10);
+
+            if (isNaN(x) || isNaN(y)) {
+                alert(`Invalid number pair at lines ${i + 1} and ${i + 2}`);
+                return;
+            }
+            pairs.push({ x, y });
+        }
+
+        if (pairs.length === 0) {
+            alert('The file must contain at least one valid pair of numbers.');
+            return;
+        }
+
+        // Initialize visualization for all pairs
+        let currentPairIndex = 0;
+
+        const visualizeCurrentPair = () => {
+            const { x, y } = pairs[currentPairIndex];
+            visualizer.visualize(x, y);
+            document.getElementById('resultDisplay').textContent = 
+                `Pair ${currentPairIndex + 1} of ${pairs.length}: Multiplying ${x} and ${y}`;
+        };
+
+        // Handle pair navigation
+        document.getElementById('prevBtn').addEventListener('click', () => {
+            if (currentPairIndex > 0) {
+                currentPairIndex--;
+                visualizeCurrentPair();
+            }
+        });
+
+        document.getElementById('nextBtn').addEventListener('click', () => {
+            if (currentPairIndex < pairs.length - 1) {
+                currentPairIndex++;
+                visualizeCurrentPair();
+            }
+        });
+
+        // Start visualization with the first pair
+        visualizeCurrentPair();
+    } catch (error) {
+        alert('Error reading file: ' + error.message);
+    }
+});
+
+        </script>
+    </body>
+</html>
