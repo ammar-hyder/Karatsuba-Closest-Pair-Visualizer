@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Karatsuba Visualizer</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        .visualization-container {
+            width: 100%;
+            height: 600px;
+            overflow: auto;
+            border: 1px solid #ccc;
+        }
+        svg {
+            width: max-content;
+            height: max-content;
+        }
+        .node circle {
+            fill: lightblue;
+            stroke: steelblue;
+            stroke-width: 2px;
+        }
+        .node text {
+            font-size: 10px;
+            text-anchor: middle;
+        }
+        .link {
+            fill: none;
+            stroke: #ccc;
+            stroke-width: 2px;
+        }
+        button {
+            background-color: #007bff; /* Blue background */
+            color: white; /* White text */
+            border: none;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            border-radius: 5px;
+            margin-top: 10px;
+        }
+        button:hover {
+            background-color: #0056b3; /* Darker blue on hover */
+        }
+        button:disabled {
+            background-color: #d6d6d6; /* Grey background for disabled buttons */
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <h1>Karatsuba Multiplication Visualizer</h1>
+    <form id="inputForm">
+        <label for="fileInput">Select Input File:</label>
+        <input type="file" id="fileInput" accept=".txt">
+        <button type="submit">Visualize</button>
+    </form>
+    <div class="visualization-container">
+        <svg></svg>
+    </div>
+    <script>
+        // Function to compute Karatsuba and generate tree structure
+        function karatsuba(x, y, depth = 0) {
+            const n = Math.max(x.toString().length, y.toString().length);
+            if (n === 1) return { result: x * y, tree: { name: `${x} * ${y} = ${x * y}`, children: [] } };
+            const m = Math.ceil(n / 2);
+            const [a, b] = splitNumber(x, m);
+            const [c, d] = splitNumber(y, m);
+            const z2 = karatsuba(a, c, depth + 1);
+            const z0 = karatsuba(b, d, depth + 1);
+            const z1 = karatsuba(a + b, c + d, depth + 1);
+            const result = z2.result * 10 ** (2 * m) + (z1.result - z2.result - z0.result) * 10 ** m + z0.result;
+            return {
+                result,
+                tree: {
+                    name: `(${x}, ${y}) -> ${result}`,
+                    children: [z2.tree, z1.tree, z0.tree]
+                }
+            };
+        }
+        // Split number into two halves
+        function splitNumber(num, m) {
+            const str = num.toString().padStart(m * 2, '0');
+            const splitPoint = str.length - m;
+            return [parseInt(str.slice(0, splitPoint)), parseInt(str.slice(splitPoint))];
+        }
+        // D3.js visualization
+        function renderTree(data) {
+            const container = d3.select(".visualization-container");
+            const svg = d3.select("svg");
+            svg.selectAll("*").remove();
+            
+            // Create tree layout with more horizontal spacing
+            const treeLayout = d3.tree()
+                .nodeSize([120, 100])  // Increase horizontal and vertical spacing
+                .separation((a, b) => a.parent === b.parent ? 1 : 1.2);
+            
+            const root = d3.hierarchy(data);
+            treeLayout(root);
+            
+            // Calculate tree bounds
+            let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+            root.each(d => {
+                minX = Math.min(minX, d.x);
+                maxX = Math.max(maxX, d.x);
+                minY = Math.min(minY, d.y);
+                maxY = Math.max(maxY, d.y);
+            });
+            
+            // Add padding
+            const paddingX = 100;
+            const paddingY = 100;
+            const treeWidth = Math.abs(maxX - minX) + 2 * paddingX;
+            const treeHeight = Math.abs(maxY - minY) + 2 * paddingY;
+            
+            // Adjust SVG size and viewBox
+            svg.attr("width", treeWidth)
+               .attr("height", treeHeight)
+               .attr("viewBox", `${minX - paddingX} ${minY - paddingY} ${treeWidth} ${treeHeight}`);
+            
+            // Draw links
+            svg.selectAll(".link")
+                .data(root.links())
+                .enter()
+                .append("path")
+                .attr("class", "link")
+                .attr("d", d3.linkVertical()
+                    .x(d => d.x)
+                    .y(d => d.y));
+            
+            // Draw nodes
+            const node = svg.selectAll(".node")
+                .data(root.descendants())
+                .enter()
+                .append("g")
+                .attr("class", "node")
+                .attr("transform", d => `translate(${d.x},${d.y})`);
+            
+            node.append("circle").attr("r", 30);
+            node.append("text")
+                .text(d => d.data.name)
+                .attr("dy", "0.35em")
+                .style("font-size", "10px");
+        }
+        
+        // Form handling
+        document.getElementById("inputForm").addEventListener("submit", async (event) => {
+            event.preventDefault();
+            const fileInput = document.getElementById("fileInput");
+            
+            if (fileInput.files.length === 0) {
+                alert("Please select a file");
+                return;
+            }
+            
+            const file = fileInput.files[0];
+            const text = await file.text();
+            const lines = text.trim().split('\n');
+            
+            if (lines.length < 2) {
+                alert("File must contain two lines with integers");
+                return;
+            }
+            
+            const num1 = parseInt(lines[0].trim());
+            const num2 = parseInt(lines[1].trim());
+            
+            const result = karatsuba(num1, num2);
+            renderTree(result.tree);
+        });
+    </script>
+</body>
+</html>
