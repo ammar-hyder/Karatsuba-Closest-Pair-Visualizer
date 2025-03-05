@@ -19,11 +19,11 @@ The project helps users understand these algorithms by providing an interactive 
 **Clone the repository**
 ```sh
 git clone https://github.com/yourusername/closest-karatsuba-visualizer.git
-```sh
+```
 **Navigate to the project folder**
 ```sh
 cd closest-karatsuba-visualizer
-```sh
+```
 **Open index.html in a browser**
 
 No additional setup is required; everything runs in the browser.
