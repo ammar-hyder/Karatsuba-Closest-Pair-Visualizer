@@ -8,8 +8,11 @@ The project helps users understand these algorithms by providing an interactive 
 
 # Features
 ✅ Interactive Visualization: Step-by-step execution of both algorithms.
+
 ✅ Closest-Pair Algorithm: Plots points dynamically and illustrates how pairs are checked.
+
 ✅ Karatsuba Algorithm: Shows two variations—detailed step-by-step breakdown and tree visualization.
+
 ✅ Web-Based: Implemented using JavaScript, HTML, and CSS, with animations for better understanding.
 
 # How to Run the Project
