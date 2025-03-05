@@ -27,7 +27,7 @@ No additional setup is required; everything runs in the browser.
 
 # Usage
 
-**Closest-Pair Algorithm**
+_**Closest-Pair Algorithm**_
 
 Add random points on the canvas.
 
@@ -35,7 +35,7 @@ Start the visualization to see how the algorithm finds the closest pair.
 
 Watch how pairs are checked and the minimum distance is computed.
 
-**Karatsuba Algorithm**
+_**Karatsuba Algorithm**_
 
 Enter two large numbers.
 
