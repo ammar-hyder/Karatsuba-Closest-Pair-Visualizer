@@ -13,12 +13,32 @@ The project helps users understand these algorithms by providing an interactive 
 ✅ Web-Based: Implemented using JavaScript, HTML, and CSS, with animations for better understanding.
 
 # How to Run the Project
-Clone the repository
+**Clone the repository**
 
 git clone https://github.com/yourusername/closest-karatsuba-visualizer.git
 
-Navigate to the project folder
+**Navigate to the project folder**
+
 cd closest-karatsuba-visualizer
 
-Open index.html in a browser
+**Open index.html in a browser**
+
 No additional setup is required; everything runs in the browser.
+
+# Usage
+
+**Closest-Pair Algorithm**
+
+Add random points on the canvas.
+
+Start the visualization to see how the algorithm finds the closest pair.
+
+Watch how pairs are checked and the minimum distance is computed.
+
+**Karatsuba Algorithm**
+
+Enter two large numbers.
+
+Choose between step-by-step calculation or tree visualization.
+
+Observe how the multiplication is performed efficiently.
