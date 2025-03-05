@@ -11,3 +11,13 @@ The project helps users understand these algorithms by providing an interactive 
 ✅ Closest-Pair Algorithm: Plots points dynamically and illustrates how pairs are checked.
 ✅ Karatsuba Algorithm: Shows two variations—detailed step-by-step breakdown and tree visualization.
 ✅ Web-Based: Implemented using JavaScript, HTML, and CSS, with animations for better understanding.
+
+# How to Run the Project
+Clone the repository
+git clone https://github.com/yourusername/closest-karatsuba-visualizer.git
+
+Navigate to the project folder
+cd closest-karatsuba-visualizer
+
+Open index.html in a browser
+No additional setup is required; everything runs in the browser.
