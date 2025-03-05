@@ -42,3 +42,6 @@ Enter two large numbers.
 Choose between step-by-step calculation or tree visualization.
 
 Observe how the multiplication is performed efficiently.
+
+#  
+Author: **Ammar Hyder**
