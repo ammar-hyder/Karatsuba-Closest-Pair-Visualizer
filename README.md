@@ -14,6 +14,7 @@ The project helps users understand these algorithms by providing an interactive 
 
 # How to Run the Project
 Clone the repository
+
 git clone https://github.com/yourusername/closest-karatsuba-visualizer.git
 
 Navigate to the project folder
